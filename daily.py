@@ -1,55 +1,48 @@
 import praw
+import schedule
 import threading
 from requests import get
+from time import sleep
 from multiprocessing.pool import ThreadPool
 import os
+from datetime import datetime
 
 
 client_id = 'XXXX'
 client_secret = 'XXXX'
-user_agent = 'Multithreaded Reddit image downloader thing (by /u/impshum)'
+user_agent = 'Multithreaded daily Reddit image downloader thing (by /u/impshum)'
+target_subreddit = 'EarthPorn'
 image_directory = 'images'
-thread_count = 16
-
-target_subreddit = input('Which subreddit?: ')
-image_count = input('How many images?: ')
-order = input('Hot/New/Top?: ')
-
-order = order.lower()
+image_count = 10
+schedule_time = '09:00'
+thread_count = 4
 
 reddit = praw.Reddit(client_id=client_id,
                      client_secret=client_secret, user_agent=user_agent)
 
 
-def get_order():
-    if order == 'hot':
-        ready = reddit.subreddit(target_subreddit).hot(limit=None)
-    elif order == 'top':
-        ready = reddit.subreddit(target_subreddit).top(limit=None)
-    elif order == 'new':
-        ready = reddit.subreddit(target_subreddit).new(limit=None)
-    return ready
-
 
 def get_img(what):
-    image = '{}/{}/{}'.format(image_directory,
-                              target_subreddit, what.split('/')[-1])
+    dir = datetime.today().strftime('%d-%m-%Y')
+    image = '{}/{}/{}'.format(image_directory, dir, what.split('/')[-1])
     img = get(what).content
     with open(image, 'wb') as f:
         f.write(img)
 
 
 def make_dir():
-    directory = f'{image_directory}/{target_subreddit}'
+    dir = datetime.today().strftime('%d-%m-%Y')
+    directory = f'{image_directory}/{dir}'
     if not os.path.exists(directory):
         os.makedirs(directory)
+    return dir
 
 
 def main():
     c = 1
     images = []
-    make_dir()
-    for submission in get_order():
+    today = make_dir()
+    for submission in reddit.subreddit(target_subreddit).new(limit=None):
         url = submission.url
         if url.endswith(('.jpg', '.png', '.gif', '.jpeg')):
             images.append(url)
@@ -61,7 +54,12 @@ def main():
     for path in results:
         pass
 
-    print('Done')
+    print(f'Done {today}')
 
 
-main()
+if __name__ == '__main__':
+    main()
+    schedule.every().day.at(schedule_time).do(main)
+    while True:
+        schedule.run_pending()
+        sleep(1)

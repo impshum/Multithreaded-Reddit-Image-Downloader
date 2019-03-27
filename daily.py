@@ -14,12 +14,25 @@ user_agent = 'Multithreaded daily Reddit image downloader thing (by /u/impshum)'
 target_subreddit = 'EarthPorn'
 image_directory = 'images'
 image_count = 10
+order = 'top'
 schedule_time = '09:00'
 thread_count = 4
 
 reddit = praw.Reddit(client_id=client_id,
                      client_secret=client_secret, user_agent=user_agent)
 
+
+order = order.lower()
+
+
+def get_order():
+    if order == 'hot':
+        ready = reddit.subreddit(target_subreddit).hot(limit=None)
+    elif order == 'top':
+        ready = reddit.subreddit(target_subreddit).top(limit=None)
+    elif order == 'new':
+        ready = reddit.subreddit(target_subreddit).new(limit=None)
+    return ready
 
 
 def get_img(what):
@@ -42,7 +55,7 @@ def main():
     c = 1
     images = []
     today = make_dir()
-    for submission in reddit.subreddit(target_subreddit).new(limit=None):
+    for submission in get_order():
         url = submission.url
         if url.endswith(('.jpg', '.png', '.gif', '.jpeg')):
             images.append(url)

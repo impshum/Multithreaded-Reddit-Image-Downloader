@@ -1,0 +1,4 @@
+requests
+praw
+configparser
+argparse

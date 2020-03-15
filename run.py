@@ -1,97 +1,67 @@
-import praw
-from requests import get
-from multiprocessing.pool import ThreadPool
 import os
 import re
+import requests
+import praw
+import configparser
+import concurrent.futures
+import argparse
 
 
+class redditImageScraper:
+    def __init__(self, sub, limit, order):
+        config = configparser.ConfigParser()
+        config.read('conf.ini')
+        self.sub = sub
+        self.limit = limit
+        self.order = order
+        self.path = f'images/{self.sub}/'
+        self.reddit = praw.Reddit(client_id=config['REDDIT']['client_id'],
+                                  client_secret=config['REDDIT']['client_secret'],
+                                  user_agent='Multithreaded Reddit Image Downloading Script Thing v2.0 (by u/impshum)')
 
-def rid(process_count, image_directory, image_count, target_sub, order):
-    def reddit_conn():
-        client_id = 'XXXX'
-        client_secret = 'XXXX'
-        rid_42 = praw.Reddit(
-            client_id=client_id,
-            client_secret=client_secret,
-            user_agent='Multithreaded Reddit image downloader thing (by /u/impshum)'
-        )
-        return rid_42
+    def download(self, image):
+        r = requests.get(image['url'])
+        with open(image['fname'], 'wb') as f:
+            f.write(r.content)
 
-    def create_tree():
-        if not os.path.isdir('./images'):
-            os.mkdir('./images')
-
-    def make_dir():
-        directory = f'{image_directory}/{target_sub}'
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
-    def get_order(reddit, order):
-        if order == 'hot':
-            ready = reddit.subreddit(target_sub).hot(limit=None)
-        elif order == 'top':
-            ready = reddit.subreddit(target_sub).top(limit=None)
-        elif order == 'new':
-            ready = reddit.subreddit(target_sub).new(limit=None)
-        return ready
-
-    def get_img(what):
-        img = get(what)
-        if img.status_code == 200:
-            img = img.content
-            image = '{}/{}/{}'.format(
-                image_directory,
-                target_sub,
-                what.split('/')[-1]
-            )
-            with open(image, 'wb') as f:
-                f.write(img)
-
-    def check_reddit():
-        try:
-            reddit.read_only
-            return True
-        except Exception as e:
-            return False
-
-    try:
-        if not check_reddit():
-            reddit = reddit_conn()
-        create_tree()
-        make_dir()
+    def start(self):
         images = []
-        order = order.lower()
-        c_images = 1
-        names = {}
+        try:
+            go = 0
+            if self.order == 'hot':
+                submissions = self.reddit.subreddit(self.sub).hot()
+            elif self.order == 'top':
+                submissions = self.reddit.subreddit(self.sub).top()
+            elif self.order == 'new':
+                submissions = self.reddit.subreddit(self.sub).new()
 
-        for submission in get_order(reddit, order):
-            url = submission.url
-            title = submission.title
-            image_name = url.split('/')[-1]
-            names.update({image_name: title})
-            if url.endswith(('.jpg', '.png', '.gif', '.jpeg')):
-                images.append(url)
-                c_images += 1
-                if int(image_count) < c_images:
-                    break
-        results = ThreadPool(process_count).imap_unordered(get_img, images)
-        for path in results:
-            pass
-        print(f'RID | {image_count} images | {process_count} processes')
-
-        for filename, name in names.items():
-            try:
-                name = re.sub("[\(\[].*?[\)\]]", "", name).strip()
-                name = re.sub(r'[^\w\s]','',name).replace(' ', '_').lower()
-                ext = filename.split('.')[-1]
-                old_filename = 'images/{}/{}'.format(target_sub, filename)
-                new_filename = 'images/{}/{}.{}'.format(target_sub, name, ext)
-                os.rename(old_filename, new_filename)
-            except Exception as e:
-                pass
-
-    except Exception as e:
-        print(f'That RID no worky | {e}')
+            for submission in submissions:
+                if not submission.stickied and submission.url.endswith(('jpg', 'jpeg', 'png')):
+                    fname = self.path + re.search('(?s:.*)\w/(.*)', submission.url).group(1)
+                    if not os.path.isfile(fname):
+                        images.append({'url': submission.url, 'fname': fname})
+                        go += 1
+                        if go >= self.limit:
+                            break
+            if len(images):
+                if not os.path.exists(self.path):
+                    os.makedirs(self.path)
+                with concurrent.futures.ThreadPoolExecutor() as ptolemy:
+                    ptolemy.map(self.download, images)
+        except Exception as e:
+            print(e)
 
 
-rid(10, 'images', 10, 'art', 'new')
+def main():
+    parser = argparse.ArgumentParser(description='Multithreaded Reddit Image Downloading Script Thing v2.0 (by u/impshum)')
+    required_args = parser.add_argument_group('required arguments')
+    required_args.add_argument('-s', type=str, help="subreddit", required=True)
+    required_args.add_argument('-i', type=int, help="number of images", required=True)
+    required_args.add_argument('-o', type=str, help="order (new/top/hot)", required=True)
+    args = parser.parse_args()
+    scraper = redditImageScraper(args.s, args.i, args.o)
+    scraper.start()
+
+
+if __name__ == '__main__':
+    main()

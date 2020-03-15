@@ -17,7 +17,7 @@ class redditImageScraper:
         self.path = f'images/{self.sub}/'
         self.reddit = praw.Reddit(client_id=config['REDDIT']['client_id'],
                                   client_secret=config['REDDIT']['client_secret'],
-                                  user_agent='Multithreaded Reddit Image Downloading Script Thing v2.0 (by u/impshum)')
+                                  user_agent='Multithreaded Reddit Image Downloader v2.0 (by u/impshum)')
 
     def download(self, image):
         r = requests.get(image['url'])
@@ -53,7 +53,7 @@ class redditImageScraper:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Multithreaded Reddit Image Downloading Script Thing v2.0 (by u/impshum)')
+    parser = argparse.ArgumentParser(description='Multithreaded Reddit Image Downloader v2.0 (by u/impshum)')
     required_args = parser.add_argument_group('required arguments')
     required_args.add_argument('-s', type=str, help="subreddit", required=True)
     required_args.add_argument('-i', type=int, help="number of images", required=True)

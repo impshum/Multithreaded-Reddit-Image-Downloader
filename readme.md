@@ -1,4 +1,4 @@
-## Multithreaded Reddit image downloader thing v2.0
+## Multithreaded Reddit Image Downloader v2.0
 
 Does exactly what it says on the tin.
 

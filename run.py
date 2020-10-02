@@ -8,12 +8,13 @@ import argparse
 
 
 class redditImageScraper:
-    def __init__(self, sub, limit, order):
+    def __init__(self, sub, limit, order, nsfw=False):
         config = configparser.ConfigParser()
         config.read('conf.ini')
         self.sub = sub
         self.limit = limit
         self.order = order
+        self.nsfw = nsfw
         self.path = f'images/{self.sub}/'
         self.reddit = praw.Reddit(client_id=config['REDDIT']['client_id'],
                                   client_secret=config['REDDIT']['client_secret'],
@@ -36,7 +37,8 @@ class redditImageScraper:
                 submissions = self.reddit.subreddit(self.sub).new(limit=None)
 
             for submission in submissions:
-                if not submission.stickied and submission.url.endswith(('jpg', 'jpeg', 'png')):
+                if not submission.stickied and submission.over_18 == self.nsfw \
+                    and submission.url.endswith(('jpg', 'jpeg', 'png')):
                     fname = self.path + re.search('(?s:.*)\w/(.*)', submission.url).group(1)
                     if not os.path.isfile(fname):
                         images.append({'url': submission.url, 'fname': fname})
